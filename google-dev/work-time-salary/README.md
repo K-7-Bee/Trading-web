@@ -36,9 +36,10 @@ The first visit asks for permission (Review permissions, Advanced, Go to Work Tr
 The `Settings`, `Employees` and `Time Log` sheets are created automatically.
 
 ## Access
-`appsscript.json` runs the app as the owner and allows only the owner. To let others use it,
-change `access` to `ANYONE` (anyone with a Google account) in Deploy, Manage deployments. Everyone
-then reads and writes the same Sheet.
+`appsscript.json` runs the app as the owner and lets anyone with the link in (`ANYONE_ANONYMOUS`, no
+Google sign-in needed). Everyone reads and writes the same Sheet, and there is no login check, so only
+share the link with people you trust. To restrict it, change `access` to `ANYONE` (Google account
+required) or `MYSELF`. Redeploy a new version for the change to take effect.
 
 ## Notes
 - Overtime is per shift, not per day: two 5-hour shifts on one day produce no overtime.

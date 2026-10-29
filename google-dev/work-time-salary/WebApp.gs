@@ -63,7 +63,7 @@ function saveSettings(s) {
 }
 
 /** Adds an employee, or updates the rate if the name exists. Blank rate = default rate. */
-function saveEmployee(name, rate) {
+function saveEmployee_(name, rate) {
   name = String(name || '').trim();
   if (!name || name.length > 60) throw new Error('Enter a name (up to 60 characters).');
   if (/^[=+\-@]/.test(name)) throw new Error('A name cannot start with = + - or @.');
@@ -88,8 +88,38 @@ function saveEmployee(name, rate) {
   return listEmployees_();
 }
 
+/** Renames an employee (also in the Time Log) and sets the rate. Blank rate = default rate. */
+function updateEmployee_(oldName, newName, rate) {
+  newName = String(newName || '').trim();
+  if (!newName || newName.length > 60) throw new Error('Enter a name (up to 60 characters).');
+  if (/^[=+\-@]/.test(newName)) throw new Error('A name cannot start with = + - or @.');
+  var r = '';
+  if (rate !== '' && rate !== null && rate !== undefined) {
+    r = Number(rate);
+    if (!(r >= 0)) throw new Error('Hourly rate must be 0 or more (or blank for the default).');
+  }
+  var existing = listEmployees_();
+  var match = existing.filter(function (e) { return e.name === oldName; })[0];
+  if (!match) throw new Error('Employee not found.');
+  var clash = existing.filter(function (e) {
+    return e.row !== match.row && e.name.toLowerCase() === newName.toLowerCase();
+  })[0];
+  if (clash) throw new Error(clash.name + ' is already on the team.');
+
+  var s = sheets_();
+  s.employees.getRange(match.row, 1, 1, 2).setValues([[newName, r]]);
+  if (newName !== oldName) {
+    var rng = s.log.getRange(2, 2, LOG_ROWS, 1);
+    var vals = rng.getValues();
+    var changed = false;
+    vals.forEach(function (v) { if (v[0] === oldName) { v[0] = newName; changed = true; } });
+    if (changed) rng.setValues(vals);
+  }
+  return listEmployees_();
+}
+
 /** Removes an employee from the list. Their logged shifts stay in the Time Log. */
-function deleteEmployee(name) {
+function deleteEmployee_(name) {
   var match = listEmployees_().filter(function (e) { return e.name === name; })[0];
   if (!match) throw new Error('Employee not found.');
   sheets_().employees.getRange(match.row, 1, 1, 2).clearContent();
@@ -129,7 +159,7 @@ function checkEntry_(e) {
 }
 
 /** Changes an existing shift. Restores the old values if the new ones give no hours. */
-function updateEntry(row, e) {
+function updateEntry_(row, e) {
   row = Number(row);
   if (!(row >= 2 && row <= LOG_ROWS + 1)) throw new Error('Bad row.');
   var brk = checkEntry_(e);
@@ -143,12 +173,12 @@ function updateEntry(row, e) {
   var hours = log.getRange(row, 6).getValue();
   if (hours !== '' && hours <= 0) {
     cells.setValues(prev);
-    throw new Error('Break is longer than the shift.');
+    throw new Error('That shift has no hours. Check the times and the break.');
   }
   return true;
 }
 
-function addEntry(e) {
+function addEntry_(e) {
   var brk = checkEntry_(e);
 
   var log = sheets_().log;
@@ -165,13 +195,13 @@ function addEntry(e) {
   var hours = log.getRange(idx + 2, 6).getValue();
   if (hours !== '' && hours <= 0) {
     log.getRange(idx + 2, 1, 1, 5).clearContent();
-    throw new Error('Break is longer than the shift.');
+    throw new Error('That shift has no hours. Check the times and the break.');
   }
   return true;
 }
 
 /** Clears the input cells of a row; the formula cells stay. */
-function deleteEntry(row) {
+function deleteEntry_(row) {
   row = Number(row);
   if (!(row >= 2 && row <= LOG_ROWS + 1)) throw new Error('Bad row.');
   sheets_().log.getRange(row, 1, 1, 5).clearContent();
@@ -187,3 +217,17 @@ function createReport(month, employee, asDocx) {
   if (asDocx) out.docxUrl = saveAsDocx_(doc).getUrl();
   return out;
 }
+
+/** Runs fn with the script lock so two people saving at once can't pick the same Time Log row. */
+function locked_(fn) {
+  var lock = null;
+  try { lock = LockService.getScriptLock(); } catch (err) { return fn(); }   // no lock available: save unlocked
+  if (!lock.tryLock(20000)) throw new Error('Someone else is saving. Try again in a moment.');
+  try { return fn(); } finally { lock.releaseLock(); }
+}
+function saveEmployee(name, rate) { return locked_(function () { return saveEmployee_(name, rate); }); }
+function updateEmployee(oldName, newName, rate) { return locked_(function () { return updateEmployee_(oldName, newName, rate); }); }
+function deleteEmployee(name) { return locked_(function () { return deleteEmployee_(name); }); }
+function updateEntry(row, e) { return locked_(function () { return updateEntry_(row, e); }); }
+function addEntry(e) { return locked_(function () { return addEntry_(e); }); }
+function deleteEntry(row) { return locked_(function () { return deleteEntry_(row); }); }

@@ -30,7 +30,10 @@
   [hidden] { display: none !important; }
 
   /* ---------- shell ---------- */
-  .app { display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; }
+  html, body { overflow-x: hidden; }
+  body:has(dialog[open]) { overflow: hidden; }   /* page behind a popup must not scroll */
+  .app { display: grid; grid-template-columns: 280px minmax(0, 1fr); min-height: 100vh; min-height: 100dvh; }
+  .main { min-width: 0; }
   .side { background: var(--surface); border-right: 1px solid var(--line); padding: 20px 14px;
           position: sticky; top: 0; height: 100vh; overflow-y: auto; }
   .brand { font: 700 20px/1.1 var(--display); padding: 0 8px 18px; }
@@ -86,10 +89,41 @@
   .day.today .n { font-weight: 700; text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: 3px; text-underline-offset: 3px; }
   .day.sel { outline: 3px solid var(--sel); outline-offset: 1px; }
   .day .ot { position: absolute; top: 7px; right: 7px; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
+  .dayinfo { margin-top: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+  .dayinfo h3 { font: 600 15px var(--display); margin: 0 0 6px; }
+  .dayinfo ol { margin: 0; padding: 0; list-style: none; }
+  .dayinfo li { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; padding: 5px 0; font-size: 14px; }
+  .dayinfo li + li { border-top: 1px solid var(--line); }
+  .dayinfo .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .dayinfo .after { color: var(--muted); }
+  .dayinfo .none { color: var(--muted); font-size: 14px; }
   .legend { margin: 8px 0 0; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
   .legend i { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); display: inline-block; }
 
+  /* ---------- hours and pay chart ---------- */
+  .chart { grid-column: 1; }
+  .chart h2 { font: 600 17px var(--display); margin: 0 0 10px; }
+  .bar { display: block; width: 100%; text-align: left; padding: 8px 10px; border: 1px solid transparent;
+         border-radius: 10px; background: none; color: inherit; }
+  .bar:hover { background: var(--bg); }
+  .bar[aria-pressed="true"] { border-color: var(--primary); background: var(--bg); }
+  .bar .top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 5px; }
+  .bar .nm { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar .val { font-size: 14px; color: var(--muted); white-space: nowrap; }
+  .bar .val b { color: var(--ink); font: 600 15px var(--display); }
+  .bar .track { height: 12px; border-radius: 6px; background: var(--line); overflow: hidden; }
+  .bar .fill { height: 100%; border-radius: 6px; min-width: 4px; }
+  .chart .note { margin: 6px 10px 0; font-size: 13px; color: var(--muted); }
+
   /* ---------- shifts list ---------- */
+  .list summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px;
+                  min-height: 44px; font: 600 17px var(--display); }
+  .list summary::-webkit-details-marker { display: none; }
+  .list summary::before { content: "\25B8"; color: var(--primary); width: 1em; }
+  .list details[open] summary::before { content: "\25BE"; }
+  .list summary .cnt { font: 400 14px var(--body); color: var(--muted); }
+  .list summary .hint { margin-left: auto; font: 400 13px var(--body); color: var(--muted); }
+  .list details[open] summary .hint { display: none; }
   .list { grid-column: 1; }
   .scroll { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; }
@@ -103,7 +137,7 @@
   .empty b { display: block; color: var(--ink); font-weight: 500; margin-bottom: 2px; }
 
   /* ---------- form ---------- */
-  .form { grid-column: 2; grid-row: 2 / span 3; align-self: start; position: sticky; top: 20px;
+  .form { grid-column: 2; grid-row: 2 / span 4; align-self: start; position: sticky; top: 20px;
           background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
   .form.editing { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); }
   .field { margin-bottom: 12px; }
@@ -120,11 +154,46 @@
   .form .row { display: flex; gap: 8px; }
   .form .row .primary { flex: 1; padding: 10px; }
 
+  .prow { display: flex; align-items: center; gap: 2px; }
+  .prow .person { flex: 1; min-width: 0; }
+
+  /* ---------- payslip ---------- */
+  #slipDlg { width: min(760px, calc(100vw - 24px)); }
+  .slipctl { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-bottom: 14px; }
+  .slipctl .field { margin: 0; flex: 1; min-width: 150px; }
+  .slip { color: #111; background: #fff; border: 1px solid var(--line); padding: 20px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .slip h2 { font: 700 22px var(--display); text-align: center; margin: 0 0 2px; }
+  .slip .co { text-align: center; font: 700 30px var(--display); margin: 0; }
+  .slip .period { text-align: center; margin: 0 0 16px; font-size: 14px; }
+  .slip .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
+  .slip .bar2 { background: #2b2b2b; color: #fff; font-size: 12px; padding: 5px 8px; margin-top: 10px; }
+  .slip .val2 { padding: 8px; font-size: 15px; min-height: 34px; border-bottom: 1px solid #ccc; }
+  .slip .ln { display: flex; justify-content: space-between; gap: 12px; padding: 8px; border-bottom: 1px solid #ccc; font-size: 14px; }
+  .slip .ln small { display: block; color: #555; font-size: 11px; }
+  .slip .ln b { font-weight: 600; white-space: nowrap; }
+  .slip .ln.tot { background: #e9e9e9; font-weight: 600; }
+  .slip .ln.tot b { font-size: 16px; }
+  .slip table { margin-top: 4px; font-size: 12px; }
+  .slip th, .slip td { padding: 5px 6px; border-bottom: 1px solid #ccc; }
+  .slip th { color: #333; }
+  .slip .n { text-align: right !important; }
+  .slip .sign { display: flex; justify-content: space-between; gap: 30px; margin-top: 34px; font-size: 12px; }
+  .slip .sign div { flex: 1; border-top: 1px solid #111; padding-top: 4px; text-align: center; }
+
+  @media print {
+    .app, #toast, .noprint, dialog::backdrop { display: none !important; }
+    html, body, body:has(dialog[open]) { overflow: visible !important; background: #fff; }
+    #slipDlg { position: static; display: block; width: auto; max-height: none; overflow: visible; border: 0; padding: 0; margin: 0; }
+    .slip { border: 0; padding: 0; }
+  }
+
   /* ---------- dialogs and toast ---------- */
   dialog { border: 1px solid var(--line); border-radius: 14px; padding: 20px; width: min(520px, calc(100vw - 24px));
-           background: var(--surface); color: var(--ink); }
+           background: var(--surface); color: var(--ink);
+           max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); overflow-y: auto; overscroll-behavior: contain; }
   dialog::backdrop { background: rgba(10, 20, 18, .5); }
   dialog h2 { font: 700 20px var(--display); margin: 0 0 4px; }
+  dialog h2:focus { outline: none; }   /* focus parks here on open so no keyboard pops up */
   dialog .sub { color: var(--muted); margin: 0 0 14px; font-size: 14px; }
   .trow { display: grid; grid-template-columns: 1fr 110px auto; gap: 8px; align-items: center; padding: 8px 0;
           border-bottom: 1px solid var(--line); }
@@ -148,12 +217,15 @@
     .list { order: 1; }   /* on narrow screens the form comes right after the calendar */
   }
   @media (max-width: 760px) {
-    .app { grid-template-columns: 1fr; }
+    .app { grid-template-columns: minmax(0, 1fr); align-content: start; }
+    .prow .btn { display: none; }   /* Payslip lives in the header on phones */
     .side { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: 12px; }
     .brand { padding-bottom: 8px; }
     .brand small { display: none; }
     .people { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; }
     .person { width: auto; flex: none; }
+    .prow { flex: none; }
+    .prow .person { flex: none; }
     .side .tools { padding: 0; }
     .side .tools .btn { flex: 1; }
     .main { padding: 14px; }
@@ -174,7 +246,7 @@
     .btn { min-height: 44px; }
     .btn.small { min-height: 44px; padding: 8px 14px; font-size: 14px; }
     .btn.icon { width: 44px; }
-    .pill { padding: 10px 14px; font-size: 14px; }
+    .pill { padding: 10px 14px; font-size: 14px; min-height: 44px; }
     .field input, .field select, .add input, .trow input { font-size: 16px; min-height: 44px; }
     .form { padding: 14px; }
     #toast { bottom: calc(14px + env(safe-area-inset-bottom)); }
@@ -205,6 +277,10 @@
 
     /* Team dialog rows stack so nothing runs off a 360px screen. */
     dialog { padding: 16px; }
+    .slip .cols { grid-template-columns: 1fr; }
+    .slip { padding: 12px; }
+    .slip table { display: table; } .slip tbody { display: table-row-group; } .slip thead { display: table-header-group; }
+    .slip tr { display: table-row; padding: 0; border: 0; } .slip td, .slip th { display: table-cell; }
     .trow { grid-template-columns: 1fr 1fr; }
     .trow .btns { grid-column: 1 / -1; justify-content: flex-end; }
     .add { grid-template-columns: 1fr; }
@@ -235,6 +311,7 @@
         </div>
         <div>
           <span class="scope" id="scope"></span>
+          <button class="btn" id="slipBtn" hidden>Payslip</button>
           <button class="btn" id="docBtn">Google Doc report</button>
           <button class="btn" id="docxBtn">Word report</button>
         </div>
@@ -242,21 +319,30 @@
 
       <section class="summary" id="summary" aria-live="polite"></section>
 
+      <section class="chart">
+        <h2>Hours and pay by person</h2>
+        <div id="chart"></div>
+        <p class="note" id="chartNote"></p>
+      </section>
+
       <section class="cal">
         <h2 id="calTitle">Days worked</h2>
         <div class="grid" id="dows"></div>
         <div class="grid" id="days"></div>
         <p class="legend"><i></i> Overtime that day. Pick a day to log a shift for it.</p>
+        <div class="dayinfo" id="dayInfo"></div>
       </section>
 
       <section class="list">
-        <h2>Shifts</h2>
-        <div class="scroll"><table>
-          <thead><tr><th>Date</th><th>Person</th><th>Time</th><th class="n c-brk">Break</th>
-            <th class="n">Hours</th><th class="n">Overtime</th><th class="n">Pay</th><th></th></tr></thead>
-          <tbody id="rows"></tbody>
-        </table></div>
-        <div class="empty" id="empty" hidden></div>
+        <details id="shiftsBox">
+          <summary><span>Shifts</span><span class="cnt" id="shiftCount"></span><span class="hint">Tap to expand</span></summary>
+          <div class="scroll"><table>
+            <thead><tr><th>Date</th><th>Person</th><th>Time</th><th class="n c-brk">Break</th>
+              <th class="n">Hours</th><th class="n">Overtime</th><th class="n">Pay</th><th></th></tr></thead>
+            <tbody id="rows"></tbody>
+          </table></div>
+          <div class="empty" id="empty" hidden></div>
+        </details>
       </section>
 
       <form class="form" id="entryForm" novalidate>
@@ -283,8 +369,8 @@
 </div>
 
 <dialog id="teamDlg">
-  <h2>Team</h2>
-  <p class="sub">Leave a rate empty to use the default hourly rate.</p>
+  <h2 tabindex="-1" autofocus>Team</h2>
+  <p class="sub">Edit a name or rate, then tap Save. Leave a rate empty to use the default hourly rate.</p>
   <div id="teamRows"></div>
   <form class="add" id="empForm">
     <input type="text" id="newName" maxlength="60" placeholder="New person's name" aria-label="Name">
@@ -295,7 +381,7 @@
 </dialog>
 
 <dialog id="settingsDlg">
-  <h2>Pay rules</h2>
+  <h2 tabindex="-1" autofocus>Pay rules</h2>
   <p class="sub">These apply to everyone. Overtime is paid for hours beyond the limit in a single shift.</p>
   <form id="settingsForm">
     <div class="field"><label for="rate">Default hourly rate (KRW)</label><input type="number" id="rate" step="1" min="0" required></div>
@@ -307,6 +393,20 @@
     <div class="dlgfoot"><button type="button" class="btn" id="settingsClose">Cancel</button>
       <button type="submit" class="btn primary" style="margin-left:8px">Save pay rules</button></div>
   </form>
+</dialog>
+
+<dialog id="slipDlg">
+  <div class="noprint">
+    <h2 tabindex="-1" autofocus>Payslip</h2>
+    <div class="slipctl">
+      <div class="field"><label for="slipDate">Date of payment</label><input type="date" id="slipDate"></div>
+      <div class="field"><label for="slipMode">Mode of payment</label>
+        <select id="slipMode"><option>Cash</option><option>Bank deposit</option><option>Cheque</option></select></div>
+    </div>
+  </div>
+  <div class="slip" id="slip"></div>
+  <div class="dlgfoot noprint"><button class="btn" id="slipClose">Close</button>
+    <button class="btn primary" id="slipPrint" style="margin-left:8px">Print</button></div>
 </dialog>
 
 <div id="toast" role="status" hidden></div>
@@ -411,8 +511,10 @@
     var p = S.month.split('-');
     $('monthLabel').textContent = MONTHS[+p[1] - 1] + ' ' + p[0];
     $('scope').textContent = (S.who || 'Everyone') + '  ';
+    $('slipBtn').hidden = !S.who;
     renderPeople();
     renderSummary();
+    renderChart();
     renderCalendar();
     renderList();
     fillEmpSelect();
@@ -427,6 +529,7 @@
     ((S.data && S.data.byEmployee) || []).forEach(function (b) { per[b.name] = b; total += b.pay; });
 
     function item(name, label, sub, color) {
+      var wrap = el('div', 'prow');
       var b = el('button', 'person');
       b.setAttribute('aria-pressed', String(S.who === name));
       var av = el('span', 'avatar', label);
@@ -442,7 +545,14 @@
         if (name) $('emp').value = name;
         renderAll();
       };
-      box.appendChild(b);
+      wrap.appendChild(b);
+      if (name) {
+        var ps = el('button', 'btn small', 'Payslip');
+        ps.title = 'Payslip for ' + name;
+        ps.onclick = function () { openSlip(name); };
+        wrap.appendChild(ps);
+      }
+      box.appendChild(wrap);
     }
     item('', 'All', S.data ? money(total) + ' this month' : 'Loading', 'var(--ink)');
     var names = S.employees.map(function (e) { return e.name; });
@@ -472,6 +582,65 @@
       });
   }
 
+  function renderChart() {
+    var box = $('chart'), note = $('chartNote');
+    box.textContent = '';
+    var list = ((S.data && S.data.byEmployee) || []).filter(function (b) { return b.name && b.hours > 0; })
+      .sort(function (a, b) { return b.hours - a.hours; });
+    if (!list.length) {
+      box.appendChild(el('div', 'empty', S.data ? 'No hours logged this month.' : 'Loading...'));
+      note.textContent = '';
+      return;
+    }
+    var max = list[0].hours, th = 0, tp = 0;
+    list.forEach(function (b) {
+      th += b.hours; tp += b.pay;
+      var row = el('button', 'bar');
+      row.type = 'button';
+      row.setAttribute('aria-pressed', String(S.who === b.name));
+      var top = el('div', 'top');
+      top.appendChild(el('span', 'nm', b.name));
+      var v = el('span', 'val');
+      v.appendChild(document.createTextNode(b.hours.toFixed(1) + ' h  \u00b7  '));
+      v.appendChild(el('b', '', money(b.pay)));
+      top.appendChild(v);
+      row.appendChild(top);
+      var track = el('div', 'track'), fill = el('div', 'fill');
+      fill.style.width = (b.hours / max * 100).toFixed(1) + '%';
+      fill.style.background = tone(b.name);
+      track.appendChild(fill);
+      row.appendChild(track);
+      row.onclick = function () { S.who = S.who === b.name ? '' : b.name; if (S.who) $('emp').value = S.who; renderAll(); };
+      box.appendChild(row);
+    });
+    note.textContent = 'Total: ' + th.toFixed(1) + ' h, ' + money(tp) + '. Tap a bar to filter by that person.';
+  }
+
+  function byStart(a, b) { return a.start < b.start ? -1 : a.start > b.start ? 1 : 0; }
+  function shortT(t) { return t.replace(/^0/, '').replace(/:00$/, ''); }
+
+  function renderDayInfo() {
+    var box = $('dayInfo');
+    box.textContent = '';
+    if (!S.selDate || S.selDate.slice(0, 7) !== S.month) { box.hidden = true; return; }
+    box.hidden = false;
+    var p = S.selDate.split('-');
+    box.appendChild(el('h3', '', 'Worked on ' + +p[2] + ' ' + MONTHS[+p[1] - 1]));
+    var shifts = rowsForView().filter(function (r) { return r.date === S.selDate; }).sort(byStart);
+    if (!shifts.length) { box.appendChild(el('div', 'none', 'No shifts on this day.')); return; }
+    var ol = el('ol');
+    shifts.forEach(function (r, i) {
+      var li = el('li');
+      var dot = el('span', 'dot'); dot.style.background = tone(r.employee);
+      li.appendChild(dot);
+      li.appendChild(el('b', '', r.employee));
+      li.appendChild(el('span', '', r.start + ' - ' + r.end + '  (' + r.hours.toFixed(1) + ' h)'));
+      if (i > 0) li.appendChild(el('span', 'after', 'after ' + shifts[i - 1].employee));
+      ol.appendChild(li);
+    });
+    box.appendChild(ol);
+  }
+
   function renderCalendar() {
     var dows = $('dows'), days = $('days');
     dows.textContent = ''; days.textContent = '';
@@ -483,8 +652,8 @@
     var count = new Date(y, m + 1, 0).getDate();
     var byDay = {};
     rowsForView().forEach(function (r) {
-      var d = byDay[r.date] || (byDay[r.date] = { hours: 0, ot: 0 });
-      d.hours += r.hours; d.ot += r.overtime;
+      var d = byDay[r.date] || (byDay[r.date] = { hours: 0, ot: 0, shifts: [] });
+      d.hours += r.hours; d.ot += r.overtime; d.shifts.push(r);
     });
     for (var i = 0; i < first; i++) days.appendChild(el('div', 'day blank'));
     for (var n = 1; n <= count; n++) {
@@ -496,7 +665,7 @@
       if (info) {
         var share = Math.min(1, info.hours / (S.who ? 10 : 24));
         b.style.setProperty('--p', (0.18 + share * 0.72).toFixed(2));
-        if (share > 0.3) b.classList.add('dark');
+        if (share > 0.6) b.classList.add('dark');
         b.appendChild(el('span', 'h', info.hours.toFixed(1)));
         if (info.ot > 0) b.appendChild(el('span', 'ot'));
         b.setAttribute('aria-label', key + ', ' + info.hours.toFixed(1) + ' hours');
@@ -511,17 +680,18 @@
           S.selDate = k;
           $('date').value = k;
           renderCalendar(); renderList();
-          $('start').focus();
         };
       })(key);
       days.appendChild(b);
     }
+    renderDayInfo();
   }
 
   function renderList() {
     var body = $('rows');
     body.textContent = '';
     var rows = rowsForView();
+    $('shiftCount').textContent = S.data ? '(' + rows.length + ')' : '';
     var empty = $('empty');
     empty.hidden = rows.length > 0 || !S.data;
     if (!empty.hidden) {
@@ -596,7 +766,7 @@
     if (net <= 0) {
       box.className = 'estimate bad';
       box.appendChild(el('b', '', 'No hours'));
-      box.appendChild(el('span', '', 'The break is longer than the shift.'));
+      box.appendChild(el('span', '', 'The break is longer than the shift (or start and end are the same).'));
       return;
     }
     var emp = S.employees.filter(function (x) { return x.name === $('emp').value; })[0];
@@ -679,6 +849,84 @@
     if (wasEditing) run.updateEntry(S.editing, entry); else run.addEntry(entry);
   };
 
+  // ---------- payslip ----------
+  var slipName = '';
+  function longDate(iso) {
+    var p = iso.split('-');
+    return +p[2] + ' ' + MONTHS[+p[1] - 1] + ' ' + p[0];
+  }
+  function openSlip(name) {
+    if (!S.data) { toast('Still loading this month. Try again in a moment.', true); return; }
+    slipName = name;
+    $('slipDate').value = S.today;
+    renderSlip();
+    $('slipDlg').showModal();
+  }
+  function renderSlip() {
+    var box = $('slip');
+    box.textContent = '';
+    var rows = S.data.rows.filter(function (r) { return r.employee === slipName; }).sort(function (a, b) {
+      return a.date < b.date ? -1 : a.date > b.date ? 1 : byStart(a, b);
+    });
+    var emp = S.employees.filter(function (x) { return x.name === slipName; })[0];
+    var rate = emp && emp.rate ? emp.rate : Number(S.settings.rate);
+    var hours = 0, ot = 0, pay = 0;
+    rows.forEach(function (r) { hours += r.hours; ot += r.overtime; pay += r.pay; });
+
+    var p = S.month.split('-');
+    var last = new Date(+p[0], +p[1], 0).getDate();
+    box.appendChild(el('h2', '', 'Payslip'));
+    box.appendChild(el('p', 'co', '7/11'));
+    box.appendChild(el('p', 'period', 'Payslip for ' + longDate(S.month + '-01') + ' to ' + longDate(S.month + '-' + pad(last))));
+
+    function bar(parent, text) { parent.appendChild(el('div', 'bar2', text)); }
+    function val(parent, text) { parent.appendChild(el('div', 'val2', text)); }
+    function line(parent, label, sub, amount, cls) {
+      var d = el('div', 'ln' + (cls ? ' ' + cls : ''));
+      var l = el('span', '', label);
+      if (sub) l.appendChild(el('small', '', sub));
+      d.appendChild(l);
+      d.appendChild(el('b', '', amount));
+      parent.appendChild(d);
+    }
+
+    var cols = el('div', 'cols'), left = el('div'), right = el('div');
+    bar(left, 'Name'); val(left, slipName);
+    bar(left, 'Item / Amount');
+    line(left, 'Hourly Rate', '', money(rate));
+    line(left, 'Net Pay', '', money(pay), 'tot');
+
+    bar(right, 'Date of Payment'); val(right, $('slipDate').value ? longDate($('slipDate').value) : '');
+    bar(right, 'Mode of Payment'); val(right, $('slipMode').value);
+    bar(right, 'Hours Details');
+    line(right, 'Total Hours Worked', rows.length + ' shift' + (rows.length === 1 ? '' : 's'), hours.toFixed(2) + ' h');
+    cols.appendChild(left); cols.appendChild(right);
+    box.appendChild(cols);
+
+    var bd = el('div', 'bar2', 'Shift details'); bd.style.marginTop = '16px';
+    box.appendChild(bd);
+    var tbl = el('table'), head = el('tr');
+    ['Date', 'Time', 'Break', 'Hours', 'Pay'].forEach(function (h, i) {
+      head.appendChild(el('th', i > 1 ? 'n' : '', h));
+    });
+    var th = el('thead'); th.appendChild(head); tbl.appendChild(th);
+    var tb = el('tbody');
+    rows.forEach(function (r) {
+      var tr = el('tr');
+      [[r.date.slice(5), ''], [r.start + ' - ' + r.end, ''], [r.brk + ' min', 'n'], [r.hours.toFixed(2), 'n'],
+       [money(r.pay), 'n']].forEach(function (c) { tr.appendChild(el('td', c[1], c[0])); });
+      tb.appendChild(tr);
+    });
+    if (!rows.length) { var e = el('tr'); var c = el('td', '', 'No shifts this month.'); c.colSpan = 5; e.appendChild(c); tb.appendChild(e); }
+    tbl.appendChild(tb);
+    box.appendChild(tbl);
+  }
+  $('slipBtn').onclick = function () { if (S.who) openSlip(S.who); };
+  $('slipDate').onchange = function () { renderSlip(); };
+  $('slipMode').onchange = function () { renderSlip(); };
+  $('slipClose').onclick = function () { $('slipDlg').close(); };
+  $('slipPrint').onclick = function () { window.print(); };
+
   // ---------- team and pay rules ----------
   function renderTeam() {
     var box = $('teamRows');
@@ -686,7 +934,10 @@
     if (!S.employees.length) box.appendChild(el('div', 'empty', 'No one yet. Add the first person below.'));
     S.employees.forEach(function (e) {
       var row = el('div', 'trow');
-      row.appendChild(el('span', '', e.name));
+      var nm = el('input');
+      nm.type = 'text'; nm.maxLength = 60; nm.value = e.name;
+      nm.setAttribute('aria-label', 'Name of ' + e.name);
+      row.appendChild(nm);
       var rate = el('input');
       rate.type = 'number'; rate.min = 0; rate.step = 1; rate.placeholder = 'Default';
       rate.value = e.rate === null ? '' : e.rate;
@@ -696,8 +947,12 @@
       var save = el('button', 'btn small', 'Save');
       save.onclick = function () {
         google.script.run.withSuccessHandler(function (l) {
-          S.employees = l; toast('Rate saved for ' + e.name + '.'); renderTeam(); renderAll(); load();
-        }).withFailureHandler(fail).saveEmployee(e.name, rate.value);
+          var newName = nm.value.trim();
+          S.employees = l;
+          if (S.who === e.name) S.who = newName;
+          toast(newName === e.name ? 'Saved ' + e.name + '.' : e.name + ' renamed to ' + newName + '.');
+          renderTeam(); renderAll(); load();
+        }).withFailureHandler(fail).updateEmployee(e.name, nm.value, rate.value);
       };
       btns.appendChild(save);
       btns.appendChild(confirmButton('Remove', 'Remove ' + e.name + '?', function () {
