@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<title>Work Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #0e4d45; --primary-ink: #ffffff; --accent: #f0b429;
+    --ink: #17211f; --muted: #5f6f6b; --bg: #f1f4f2; --surface: #ffffff;
+    --line: #d8e0dc; --danger: #b3372e; --sel: #17211f;
+    --display: "Bricolage Grotesque", "Noto Sans KR", system-ui, sans-serif;
+    --body: "Noto Sans KR", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --primary: #4fb3a1; --primary-ink: #08221e; --accent: #f0b429;
+      --ink: #e7eeec; --muted: #9db0ab; --bg: #101615; --surface: #172120;
+      --line: #2a3835; --danger: #ff8d82; --sel: #e7eeec;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--body);
+         font-variant-numeric: tabular-nums; }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  [hidden] { display: none !important; }
+
+  /* ---------- shell ---------- */
+  .app { display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; }
+  .side { background: var(--surface); border-right: 1px solid var(--line); padding: 20px 14px;
+          position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+  .brand { font: 700 20px/1.1 var(--display); padding: 0 8px 18px; }
+  .brand small { display: block; font: 400 13px var(--body); color: var(--muted); margin-top: 4px; }
+  .person { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+            padding: 9px 8px; border: 0; border-radius: 10px; background: none; }
+  .person:hover { background: var(--bg); }
+  .person[aria-pressed="true"] { background: var(--bg); box-shadow: inset 3px 0 0 var(--primary); }
+  .avatar { flex: none; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
+            color: #fff; font: 600 14px var(--display); }
+  .person .who { flex: 1; min-width: 0; }
+  .person .who b { display: block; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .person .who span { display: block; font-size: 13px; color: var(--muted); }
+  .side .tools { display: flex; gap: 8px; margin-top: 14px; padding: 0 8px; }
+
+  .main { padding: 24px; min-width: 0; }
+  .work { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px 28px; max-width: 1120px; }
+  .head { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+          justify-content: space-between; }
+  .monthnav { display: flex; align-items: center; gap: 6px; }
+  .monthnav h1 { font: 700 28px/1 var(--display); margin: 0 8px; min-width: 190px; text-align: center; }
+  .scope { color: var(--muted); font-size: 14px; }
+
+  .btn { padding: 8px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+  .btn:hover { border-color: var(--primary); }
+  .btn.primary { background: var(--primary); border-color: var(--primary); color: var(--primary-ink); font-weight: 500; }
+  .btn.ghost { border-color: transparent; background: none; color: var(--primary); }
+  .btn.icon { width: 38px; padding: 8px 0; text-align: center; font-size: 18px; line-height: 1; }
+  .btn.danger { color: var(--danger); }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .btn.small { padding: 4px 10px; font-size: 13px; }
+
+  /* ---------- summary ---------- */
+  .summary { grid-column: 1; display: flex; flex-wrap: wrap; gap: 8px 36px; align-items: flex-end;
+             padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+  .summary .pay b { display: block; font: 700 44px/1 var(--display); letter-spacing: -0.01em; }
+  .summary .pay span, .summary .fig span { color: var(--muted); font-size: 14px; }
+  .summary .fig b { display: block; font: 600 22px/1.2 var(--display); }
+
+  /* ---------- calendar ---------- */
+  .cal { grid-column: 1; }
+  .cal h2, .list h2, .form h2 { font: 600 17px var(--display); margin: 0 0 10px; }
+  .grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+  .dow { font-size: 13px; color: var(--muted); text-align: center; padding-bottom: 2px; }
+  .day { position: relative; aspect-ratio: 1 / 0.82; min-height: 52px; border: 1px solid var(--line);
+         border-radius: 8px; padding: 5px 7px; text-align: left; display: flex; flex-direction: column;
+         justify-content: space-between; background: color-mix(in srgb, var(--primary) calc(var(--p, 0) * 100%), var(--surface)); }
+  .day:hover { border-color: var(--primary); }
+  .day.blank { visibility: hidden; border: 0; }
+  .day .n { font-size: 13px; opacity: .85; }
+  .day .h { font: 600 15px var(--display); }
+  .day.dark { color: var(--primary-ink); }
+  .day.today .n { font-weight: 700; text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: 3px; text-underline-offset: 3px; }
+  .day.sel { outline: 3px solid var(--sel); outline-offset: 1px; }
+  .day .ot { position: absolute; top: 7px; right: 7px; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
+  .legend { margin: 8px 0 0; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .legend i { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); display: inline-block; }
+
+  /* ---------- shifts list ---------- */
+  .list { grid-column: 1; }
+  .scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { font-weight: 500; font-size: 13px; color: var(--muted); }
+  td.n, th.n { text-align: right; }
+  .c-brk { display: none; }
+  tr.sel td { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+  td.act { text-align: right; }
+  .empty { padding: 22px 8px; color: var(--muted); }
+  .empty b { display: block; color: var(--ink); font-weight: 500; margin-bottom: 2px; }
+
+  /* ---------- form ---------- */
+  .form { grid-column: 2; grid-row: 2 / span 3; align-self: start; position: sticky; top: 20px;
+          background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+  .form.editing { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 14px; margin-bottom: 4px; }
+  .field input, .field select { width: 100%; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .pill { padding: 5px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); font-size: 13px; }
+  .pill:hover { border-color: var(--primary); }
+  .estimate { margin: 4px 0 14px; padding: 10px 12px; border-radius: 10px; background: var(--bg); min-height: 62px; }
+  .estimate b { font: 700 22px/1.2 var(--display); }
+  .estimate span { display: block; color: var(--muted); font-size: 13px; }
+  .estimate.bad b { color: var(--danger); }
+  .form .row { display: flex; gap: 8px; }
+  .form .row .primary { flex: 1; padding: 10px; }
+
+  /* ---------- dialogs and toast ---------- */
+  dialog { border: 1px solid var(--line); border-radius: 14px; padding: 20px; width: min(520px, calc(100vw - 24px));
+           background: var(--surface); color: var(--ink); }
+  dialog::backdrop { background: rgba(10, 20, 18, .5); }
+  dialog h2 { font: 700 20px var(--display); margin: 0 0 4px; }
+  dialog .sub { color: var(--muted); margin: 0 0 14px; font-size: 14px; }
+  .trow { display: grid; grid-template-columns: 1fr 110px auto; gap: 8px; align-items: center; padding: 8px 0;
+          border-bottom: 1px solid var(--line); }
+  .trow input { width: 100%; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+  .trow .btns { display: flex; gap: 4px; }
+  .add { display: grid; grid-template-columns: 1fr 110px auto; gap: 8px; margin-top: 14px; }
+  .add input { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); width: 100%; }
+  .dlgfoot { display: flex; justify-content: flex-end; margin-top: 16px; }
+
+  #toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); max-width: min(560px, calc(100vw - 24px));
+           background: var(--ink); color: var(--bg); padding: 10px 14px; border-radius: 10px; display: flex; gap: 12px;
+           align-items: center; z-index: 10; box-shadow: 0 6px 24px rgba(0, 0, 0, .25); }
+  #toast.err { background: var(--danger); color: #fff; }
+  #toast a { color: var(--accent); font-weight: 500; margin-right: 8px; }
+  #toast button { background: none; border: 0; color: inherit; font-size: 18px; line-height: 1; padding: 0 2px; }
+
+  /* ---------- small screens ---------- */
+  @media (max-width: 1100px) {
+    .work { grid-template-columns: minmax(0, 1fr); }
+    .form { grid-column: 1; grid-row: auto; position: static; }
+    .list { order: 1; }   /* on narrow screens the form comes right after the calendar */
+  }
+  @media (max-width: 760px) {
+    .app { grid-template-columns: 1fr; }
+    .side { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: 12px; }
+    .brand { padding-bottom: 8px; }
+    .brand small { display: none; }
+    .people { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; }
+    .person { width: auto; flex: none; }
+    .side .tools { padding: 0; }
+    .side .tools .btn { flex: 1; }
+    .main { padding: 14px; }
+    .head { gap: 8px; }
+    .head > div:last-child { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
+    .head .scope { width: 100%; }
+    .head > div:last-child .btn { flex: 1; }
+    .monthnav { width: 100%; justify-content: space-between; }
+    .monthnav h1 { font-size: 22px; min-width: 0; flex: 1; }
+    .summary .pay { width: 100%; }
+    .summary .pay b { font-size: 36px; }
+    .summary { gap: 8px 28px; }
+    .grid { gap: 3px; }
+    .day { min-height: 44px; padding: 3px 4px; }
+    .day .h { font-size: 13px; }
+
+    /* Touch targets of about 44px, and 16px text so iPhones don't zoom into fields. */
+    .btn { min-height: 44px; }
+    .btn.small { min-height: 44px; padding: 8px 14px; font-size: 14px; }
+    .btn.icon { width: 44px; }
+    .pill { padding: 10px 14px; font-size: 14px; }
+    .field input, .field select, .add input, .trow input { font-size: 16px; min-height: 44px; }
+    .form { padding: 14px; }
+    #toast { bottom: calc(14px + env(safe-area-inset-bottom)); }
+
+    /* Shifts become compact cards instead of a wide table. */
+    .scroll { overflow: visible; }
+    table, tbody { display: block; }
+    thead { display: none; }
+    tr { display: grid; grid-template-columns: 52px 1fr auto; gap: 2px 12px; padding: 12px 4px;
+         border-bottom: 1px solid var(--line); }
+    td { border: 0; padding: 0; white-space: normal; text-align: left; }
+    td.n { text-align: left; }
+    tr.sel td { background: none; }
+    tr.sel { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+    .c-who { grid-column: 1 / 3; grid-row: 1; font-weight: 500; }
+    .c-pay { grid-column: 3; grid-row: 1; text-align: right !important; font: 600 16px var(--display); }
+    .c-date { grid-column: 1; grid-row: 2; color: var(--muted); }
+    .c-time { grid-column: 2; grid-row: 2; color: var(--muted); }
+    .c-hours { grid-column: 3; grid-row: 2; text-align: right !important; }
+    .c-hours::after { content: " h"; }
+    .c-brk { display: block; grid-column: 1; grid-row: 3; color: var(--muted); font-size: 14px; }
+    .c-brk::before { content: "Break "; }
+    .c-ot { grid-column: 2 / 4; grid-row: 3; color: var(--muted); font-size: 14px; }
+    .c-ot::before { content: "Overtime "; }
+    .c-ot::after { content: " h"; }
+    .zero { display: none; }
+    td.act { grid-column: 1 / 4; grid-row: 4; text-align: right !important; padding-top: 4px; }
+
+    /* Team dialog rows stack so nothing runs off a 360px screen. */
+    dialog { padding: 16px; }
+    .trow { grid-template-columns: 1fr 1fr; }
+    .trow .btns { grid-column: 1 / -1; justify-content: flex-end; }
+    .add { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .day, .person, .btn { transition: border-color .12s, background-color .12s; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">Work Tracker<small>Hours and pay for your team</small></div>
+    <div class="people" id="people"></div>
+    <div class="tools">
+      <button class="btn small" id="teamBtn">Manage team</button>
+      <button class="btn small" id="settingsBtn">Pay rules</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="work">
+      <div class="head">
+        <div class="monthnav">
+          <button class="btn icon" id="prev" aria-label="Previous month">&lsaquo;</button>
+          <h1 id="monthLabel"></h1>
+          <button class="btn icon" id="next" aria-label="Next month">&rsaquo;</button>
+        </div>
+        <div>
+          <span class="scope" id="scope"></span>
+          <button class="btn" id="docBtn">Google Doc report</button>
+          <button class="btn" id="docxBtn">Word report</button>
+        </div>
+      </div>
+
+      <section class="summary" id="summary" aria-live="polite"></section>
+
+      <section class="cal">
+        <h2 id="calTitle">Days worked</h2>
+        <div class="grid" id="dows"></div>
+        <div class="grid" id="days"></div>
+        <p class="legend"><i></i> Overtime that day. Pick a day to log a shift for it.</p>
+      </section>
+
+      <section class="list">
+        <h2>Shifts</h2>
+        <div class="scroll"><table>
+          <thead><tr><th>Date</th><th>Person</th><th>Time</th><th class="n c-brk">Break</th>
+            <th class="n">Hours</th><th class="n">Overtime</th><th class="n">Pay</th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table></div>
+        <div class="empty" id="empty" hidden></div>
+      </section>
+
+      <form class="form" id="entryForm" novalidate>
+        <h2 id="formTitle">Log a shift</h2>
+        <div class="field"><label for="emp">Person</label><select id="emp"></select></div>
+        <div class="field"><label for="date">Date</label><input type="date" id="date" required></div>
+        <div class="presets" id="presets"></div>
+        <div class="two">
+          <div class="field"><label for="start">Start</label>
+            <input type="text" id="start" inputmode="numeric" placeholder="e.g. 900" autocomplete="off" enterkeyhint="next"></div>
+          <div class="field"><label for="end">End</label>
+            <input type="text" id="end" inputmode="numeric" placeholder="e.g. 1800" autocomplete="off" enterkeyhint="done"></div>
+        </div>
+        <div class="field"><label for="brk">Break in minutes</label>
+          <input type="number" id="brk" min="0" value="0"></div>
+        <div class="estimate" id="estimate"><span>Enter a start and end time to see the hours and pay.</span></div>
+        <div class="row">
+          <button type="submit" class="btn primary" id="addBtn">Add shift</button>
+          <button type="button" class="btn" id="cancelBtn" hidden>Cancel</button>
+        </div>
+      </form>
+    </div>
+  </main>
+</div>
+
+<dialog id="teamDlg">
+  <h2>Team</h2>
+  <p class="sub">Leave a rate empty to use the default hourly rate.</p>
+  <div id="teamRows"></div>
+  <form class="add" id="empForm">
+    <input type="text" id="newName" maxlength="60" placeholder="New person's name" aria-label="Name">
+    <input type="number" id="newRate" step="1" min="0" placeholder="Rate" aria-label="Hourly rate">
+    <button class="btn primary" type="submit">Add person</button>
+  </form>
+  <div class="dlgfoot"><button class="btn" id="teamClose">Done</button></div>
+</dialog>
+
+<dialog id="settingsDlg">
+  <h2>Pay rules</h2>
+  <p class="sub">These apply to everyone. Overtime is paid for hours beyond the limit in a single shift.</p>
+  <form id="settingsForm">
+    <div class="field"><label for="rate">Default hourly rate (KRW)</label><input type="number" id="rate" step="1" min="0" required></div>
+    <div class="two">
+      <div class="field"><label for="after">Overtime after (hours per shift)</label><input type="number" id="after" step="0.25" min="1" max="24" required></div>
+      <div class="field"><label for="mult">Overtime pay multiplier</label><input type="number" id="mult" step="0.05" min="1" required></div>
+    </div>
+    <div class="field"><label for="symbol">Currency symbol</label><input type="text" id="symbol" maxlength="5"></div>
+    <div class="dlgfoot"><button type="button" class="btn" id="settingsClose">Cancel</button>
+      <button type="submit" class="btn primary" style="margin-left:8px">Save pay rules</button></div>
+  </form>
+</dialog>
+
+<div id="toast" role="status" hidden></div>
+
+<script>
+  var $ = function (id) { return document.getElementById(id); };
+  var S = { month: '', who: '', selDate: '', today: '', employees: [], settings: {}, data: null, editing: null };
+  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
+                'September', 'October', 'November', 'December'];
+  var TONES = ['#2f6f62', '#3b5ba5', '#8e5a9b', '#b8741a', '#4f7a28', '#a8433f'];
+
+  function el(tag, cls, value) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (value !== undefined) e.textContent = value;
+    return e;
+  }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function money(n) {
+    return (S.settings.symbol || '') + String(Math.round(Number(n))).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+  function tone(name) {
+    var h = 0;
+    for (var i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+    return TONES[h % TONES.length];
+  }
+  function initials(name) {
+    var p = name.trim().split(/\s+/);
+    return (p.length > 1 ? p[0][0] + p[p.length - 1][0] : name.slice(0, 2)).toUpperCase();
+  }
+
+  // ---------- messages ----------
+  var toastTimer = null;
+  function toast(text, isErr, links) {
+    var t = $('toast');
+    clearTimeout(toastTimer);
+    t.textContent = '';
+    t.className = isErr ? 'err' : '';
+    var msg = el('span', '', text);
+    t.appendChild(msg);
+    (links || []).forEach(function (l) {
+      var a = el('a', '', l[0]);
+      a.href = l[1]; a.target = '_blank'; a.rel = 'noopener';
+      t.appendChild(a);
+    });
+    var x = el('button', '', '×');
+    x.setAttribute('aria-label', 'Dismiss');
+    x.onclick = function () { t.hidden = true; };
+    t.appendChild(x);
+    t.hidden = false;
+    if (!links && !isErr) toastTimer = setTimeout(function () { t.hidden = true; }, 3500);
+  }
+  function fail(err) { toast((err && err.message) || String(err), true); busy(false); }
+  function busy(on) {
+    ['addBtn', 'docBtn', 'docxBtn'].forEach(function (id) { $(id).disabled = on; });
+  }
+
+  // Two-step button: first click arms it, second click within 3 seconds confirms.
+  function confirmButton(label, armedLabel, action) {
+    var b = el('button', 'btn small danger', label);
+    var armed = false, timer;
+    b.onclick = function () {
+      if (!armed) {
+        armed = true; b.textContent = armedLabel;
+        timer = setTimeout(function () { armed = false; b.textContent = label; }, 3000);
+        return;
+      }
+      clearTimeout(timer); action();
+    };
+    return b;
+  }
+
+  // ---------- data ----------
+  function rowsForView() {
+    var rows = S.data ? S.data.rows : [];
+    return S.who ? rows.filter(function (r) { return r.employee === S.who; }) : rows;
+  }
+
+  var requestId = 0;
+  function load() {
+    var mine = ++requestId;
+    google.script.run.withSuccessHandler(function (d) {
+      if (mine !== requestId) return;   // a newer request replaced this one
+      S.data = d; renderAll();
+    }).withFailureHandler(fail).getMonth(S.month, '');
+  }
+
+  function shiftMonth(delta) {
+    var p = S.month.split('-');
+    var d = new Date(+p[0], +p[1] - 1 + delta, 1);
+    S.month = d.getFullYear() + '-' + pad(d.getMonth() + 1);
+    // Keep the form date inside the month being viewed.
+    S.selDate = S.today.slice(0, 7) === S.month ? S.today : S.month + '-01';
+    $('date').value = S.selDate;
+    S.data = null;
+    renderAll();
+    load();
+  }
+
+  // ---------- render ----------
+  function renderAll() {
+    var p = S.month.split('-');
+    $('monthLabel').textContent = MONTHS[+p[1] - 1] + ' ' + p[0];
+    $('scope').textContent = (S.who || 'Everyone') + '  ';
+    renderPeople();
+    renderSummary();
+    renderCalendar();
+    renderList();
+    fillEmpSelect();
+    updateEstimate();
+  }
+
+  function renderPeople() {
+    var box = $('people');
+    box.textContent = '';
+    var per = {};
+    var total = 0;
+    ((S.data && S.data.byEmployee) || []).forEach(function (b) { per[b.name] = b; total += b.pay; });
+
+    function item(name, label, sub, color) {
+      var b = el('button', 'person');
+      b.setAttribute('aria-pressed', String(S.who === name));
+      var av = el('span', 'avatar', label);
+      av.style.background = color;
+      if (!name) av.style.color = 'var(--bg)';
+      b.appendChild(av);
+      var w = el('span', 'who');
+      w.appendChild(el('b', '', name || 'Everyone'));
+      w.appendChild(el('span', '', sub));
+      b.appendChild(w);
+      b.onclick = function () {
+        S.who = name;
+        if (name) $('emp').value = name;
+        renderAll();
+      };
+      box.appendChild(b);
+    }
+    item('', 'All', S.data ? money(total) + ' this month' : 'Loading', 'var(--ink)');
+    var names = S.employees.map(function (e) { return e.name; });
+    Object.keys(per).forEach(function (n) { if (n && names.indexOf(n) < 0) names.push(n); });
+    names.forEach(function (n) {
+      var b = per[n];
+      item(n, initials(n), b ? money(b.pay) + '  |  ' + b.hours.toFixed(1) + ' h' : 'No shifts yet', tone(n));
+    });
+  }
+
+  function renderSummary() {
+    var box = $('summary');
+    box.textContent = '';
+    var rows = rowsForView();
+    var t = { hours: 0, overtime: 0, pay: 0 };
+    rows.forEach(function (r) { t.hours += r.hours; t.overtime += r.overtime; t.pay += r.pay; });
+    var pay = el('div', 'pay');
+    pay.appendChild(el('b', '', S.data ? money(t.pay) : '...'));
+    pay.appendChild(el('span', '', 'Total pay'));
+    box.appendChild(pay);
+    [['Hours', t.hours.toFixed(1)], ['Overtime', t.overtime.toFixed(1) + ' h'], ['Shifts', rows.length]]
+      .forEach(function (f) {
+        var d = el('div', 'fig');
+        d.appendChild(el('b', '', S.data ? String(f[1]) : '...'));
+        d.appendChild(el('span', '', f[0]));
+        box.appendChild(d);
+      });
+  }
+
+  function renderCalendar() {
+    var dows = $('dows'), days = $('days');
+    dows.textContent = ''; days.textContent = '';
+    ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach(function (d) { dows.appendChild(el('div', 'dow', d)); });
+    $('calTitle').textContent = S.who ? 'Days worked by ' + S.who : 'Days worked by everyone';
+
+    var p = S.month.split('-'), y = +p[0], m = +p[1] - 1;
+    var first = new Date(y, m, 1).getDay();
+    var count = new Date(y, m + 1, 0).getDate();
+    var byDay = {};
+    rowsForView().forEach(function (r) {
+      var d = byDay[r.date] || (byDay[r.date] = { hours: 0, ot: 0 });
+      d.hours += r.hours; d.ot += r.overtime;
+    });
+    for (var i = 0; i < first; i++) days.appendChild(el('div', 'day blank'));
+    for (var n = 1; n <= count; n++) {
+      var key = S.month + '-' + pad(n);
+      var info = byDay[key];
+      var b = el('button', 'day');
+      b.type = 'button';
+      b.appendChild(el('span', 'n', n));
+      if (info) {
+        var share = Math.min(1, info.hours / (S.who ? 10 : 24));
+        b.style.setProperty('--p', (0.18 + share * 0.72).toFixed(2));
+        if (share > 0.3) b.classList.add('dark');
+        b.appendChild(el('span', 'h', info.hours.toFixed(1)));
+        if (info.ot > 0) b.appendChild(el('span', 'ot'));
+        b.setAttribute('aria-label', key + ', ' + info.hours.toFixed(1) + ' hours');
+      } else {
+        b.appendChild(el('span', 'h', ''));
+        b.setAttribute('aria-label', key + ', no shifts');
+      }
+      if (key === S.today) b.classList.add('today');
+      if (key === S.selDate) b.classList.add('sel');
+      b.onclick = (function (k) {
+        return function () {
+          S.selDate = k;
+          $('date').value = k;
+          renderCalendar(); renderList();
+          $('start').focus();
+        };
+      })(key);
+      days.appendChild(b);
+    }
+  }
+
+  function renderList() {
+    var body = $('rows');
+    body.textContent = '';
+    var rows = rowsForView();
+    var empty = $('empty');
+    empty.hidden = rows.length > 0 || !S.data;
+    if (!empty.hidden) {
+      empty.textContent = '';
+      if (!S.employees.length) {
+        empty.appendChild(el('b', '', 'Add your first person'));
+        empty.appendChild(document.createTextNode('Open Manage team in the left column, then log their shifts.'));
+      } else {
+        empty.appendChild(el('b', '', 'No shifts this month'));
+        empty.appendChild(document.createTextNode('Pick a day on the calendar and log the first shift.'));
+      }
+    }
+    rows.forEach(function (r) {
+      var tr = document.createElement('tr');
+      if (r.date === S.selDate) tr.className = 'sel';
+      [[r.date.slice(5), 'c-date'], [r.employee, 'c-who'], [r.start + ' - ' + r.end, 'c-time'],
+       [r.brk + ' min', 'n c-brk' + (r.brk ? '' : ' zero')], [r.hours.toFixed(2), 'n c-hours'],
+       [r.overtime.toFixed(2), 'n c-ot' + (r.overtime > 0 ? '' : ' zero')], [money(r.pay), 'n c-pay']]
+        .forEach(function (c) { tr.appendChild(el('td', c[1], c[0])); });
+      var td = el('td', 'act');
+      var edit = el('button', 'btn small ghost', 'Edit');
+      edit.onclick = function () { startEdit(r); };
+      td.appendChild(edit);
+      td.appendChild(confirmButton('Delete', 'Delete this shift?', function () {
+        google.script.run.withSuccessHandler(function () {
+          if (S.editing === r.row) stopEdit();
+          toast('Shift deleted.'); load();
+        }).withFailureHandler(fail).deleteEntry(r.row);
+      }));
+      tr.appendChild(td);
+      body.appendChild(tr);
+    });
+  }
+
+  function fillEmpSelect() {
+    var sel = $('emp'), keep = sel.value || S.who;
+    sel.textContent = '';
+    S.employees.forEach(function (e) { var o = el('option', '', e.name); o.value = e.name; sel.appendChild(o); });
+    // While editing a shift of someone no longer on the team, keep them selectable.
+    if (S.editing !== null && keep && !S.employees.some(function (e) { return e.name === keep; })) {
+      var o = el('option', '', keep); o.value = keep; sel.appendChild(o);
+    }
+    if (Array.prototype.some.call(sel.options, function (o) { return o.value === keep; })) sel.value = keep;
+  }
+
+  // ---------- time entry ----------
+  function parseTime(s) {
+    var m = /^(\d{1,2})(?::?(\d{2}))?\s*(am|pm)?$/.exec(String(s).trim().toLowerCase());
+    if (!m) return null;
+    var h = +m[1], mi = m[2] ? +m[2] : 0;
+    if (m[3]) {
+      if (h < 1 || h > 12) return null;
+      if (m[3] === 'pm' && h < 12) h += 12;
+      if (m[3] === 'am' && h === 12) h = 0;
+    }
+    if (h > 23 || mi > 59) return null;
+    return pad(h) + ':' + pad(mi);
+  }
+  function minutes(t) { var p = t.split(':'); return +p[0] * 60 + +p[1]; }
+
+  function updateEstimate() {
+    var box = $('estimate');
+    box.textContent = '';
+    box.className = 'estimate';
+    var s = parseTime($('start').value), e = parseTime($('end').value);
+    if (!s || !e) {
+      box.appendChild(el('span', '', 'Enter a start and end time to see the hours and pay.'));
+      return;
+    }
+    var brk = Number($('brk').value || 0);
+    var net = (((minutes(e) - minutes(s) + 1440) % 1440) - brk) / 60;
+    if (net <= 0) {
+      box.className = 'estimate bad';
+      box.appendChild(el('b', '', 'No hours'));
+      box.appendChild(el('span', '', 'The break is longer than the shift.'));
+      return;
+    }
+    var emp = S.employees.filter(function (x) { return x.name === $('emp').value; })[0];
+    var rate = emp && emp.rate ? emp.rate : S.settings.rate;
+    var after = Number(S.settings.overtimeAfter) || 8;
+    var ot = Math.max(0, net - after);
+    var pay = (net - ot) * rate + ot * rate * (Number(S.settings.multiplier) || 1);
+    box.appendChild(el('b', '', net.toFixed(2) + ' hours, ' + money(pay)));
+    box.appendChild(el('span', '', s + ' to ' + e + (e <= s ? ' (next day)' : '') +
+      (ot > 0 ? ', ' + ot.toFixed(2) + ' h overtime' : '')));
+  }
+
+  ['start', 'end'].forEach(function (id) {
+    $(id).onblur = function () { var t = parseTime($(id).value); if (t) $(id).value = t; updateEstimate(); };
+    $(id).oninput = updateEstimate;
+  });
+  $('brk').oninput = updateEstimate;
+  $('emp').onchange = updateEstimate;
+  $('date').onchange = function () {
+    S.selDate = $('date').value;
+    var ym = S.selDate.slice(0, 7);
+    if (ym && ym !== S.month) { S.month = ym; S.data = null; renderAll(); load(); } else { renderCalendar(); renderList(); }
+  };
+
+  [['09:00', '18:00', 60], ['08:00', '17:00', 60], ['09:00', '13:00', 0], ['22:00', '06:00', 30]]
+    .forEach(function (p) {
+      var b = el('button', 'pill', p[0] + ' to ' + p[1]);
+      b.type = 'button';
+      b.title = 'Break ' + p[2] + ' min';
+      b.onclick = function () {
+        $('start').value = p[0]; $('end').value = p[1]; $('brk').value = p[2];
+        updateEstimate();
+      };
+      $('presets').appendChild(b);
+    });
+
+  function startEdit(r) {
+    S.editing = r.row;
+    if (!S.employees.some(function (x) { return x.name === r.employee; })) {
+      var o = el('option', '', r.employee); o.value = r.employee; $('emp').appendChild(o);
+    }
+    $('emp').value = r.employee;
+    $('date').value = r.date;
+    S.selDate = r.date;
+    $('start').value = r.start; $('end').value = r.end; $('brk').value = r.brk;
+    $('formTitle').textContent = 'Edit shift';
+    $('addBtn').textContent = 'Save changes';
+    $('cancelBtn').hidden = false;
+    $('entryForm').classList.add('editing');
+    updateEstimate(); renderCalendar(); renderList();
+    $('entryForm').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function stopEdit() {
+    S.editing = null;
+    $('formTitle').textContent = 'Log a shift';
+    $('addBtn').textContent = 'Add shift';
+    $('cancelBtn').hidden = true;
+    $('entryForm').classList.remove('editing');
+    $('start').value = ''; $('end').value = ''; $('brk').value = 0;
+    fillEmpSelect(); updateEstimate();
+  }
+  $('cancelBtn').onclick = stopEdit;
+
+  $('entryForm').onsubmit = function (e) {
+    e.preventDefault();
+    var s = parseTime($('start').value), t = parseTime($('end').value);
+    if (!$('emp').value) { toast('Add a person first, using Manage team.', true); return; }
+    if (!$('date').value) { toast('Pick a date.', true); return; }
+    if (!s || !t) { toast('Type times like 900 or 1830, or tap a shift above.', true); return; }
+    var entry = { employee: $('emp').value, date: $('date').value, start: s, end: t, brk: $('brk').value };
+    var wasEditing = S.editing !== null;
+    busy(true);
+    var run = google.script.run.withSuccessHandler(function () {
+      busy(false);
+      if (wasEditing) stopEdit();
+      toast(wasEditing ? 'Shift updated.' : 'Shift added.');
+      load();
+    }).withFailureHandler(fail);
+    if (wasEditing) run.updateEntry(S.editing, entry); else run.addEntry(entry);
+  };
+
+  // ---------- team and pay rules ----------
+  function renderTeam() {
+    var box = $('teamRows');
+    box.textContent = '';
+    if (!S.employees.length) box.appendChild(el('div', 'empty', 'No one yet. Add the first person below.'));
+    S.employees.forEach(function (e) {
+      var row = el('div', 'trow');
+      row.appendChild(el('span', '', e.name));
+      var rate = el('input');
+      rate.type = 'number'; rate.min = 0; rate.step = 1; rate.placeholder = 'Default';
+      rate.value = e.rate === null ? '' : e.rate;
+      rate.setAttribute('aria-label', 'Hourly rate for ' + e.name);
+      row.appendChild(rate);
+      var btns = el('span', 'btns');
+      var save = el('button', 'btn small', 'Save');
+      save.onclick = function () {
+        google.script.run.withSuccessHandler(function (l) {
+          S.employees = l; toast('Rate saved for ' + e.name + '.'); renderTeam(); renderAll(); load();
+        }).withFailureHandler(fail).saveEmployee(e.name, rate.value);
+      };
+      btns.appendChild(save);
+      btns.appendChild(confirmButton('Remove', 'Remove ' + e.name + '?', function () {
+        google.script.run.withSuccessHandler(function (l) {
+          S.employees = l;
+          if (S.who === e.name) S.who = '';
+          toast(e.name + ' removed. Their shifts are kept.'); renderTeam(); renderAll(); load();
+        }).withFailureHandler(fail).deleteEmployee(e.name);
+      }));
+      row.appendChild(btns);
+      box.appendChild(row);
+    });
+  }
+
+  $('teamBtn').onclick = function () { renderTeam(); $('teamDlg').showModal(); };
+  $('teamClose').onclick = function () { $('teamDlg').close(); };
+  $('empForm').onsubmit = function (e) {
+    e.preventDefault();
+    google.script.run.withSuccessHandler(function (l) {
+      S.employees = l;
+      toast($('newName').value.trim() + ' saved.');
+      $('newName').value = ''; $('newRate').value = '';
+      renderTeam(); renderAll(); load();
+    }).withFailureHandler(fail).saveEmployee($('newName').value, $('newRate').value);
+  };
+
+  function fillSettings() {
+    $('rate').value = S.settings.rate;
+    $('after').value = S.settings.overtimeAfter;
+    $('mult').value = S.settings.multiplier;
+    $('symbol').value = S.settings.symbol;
+  }
+  $('settingsBtn').onclick = function () { fillSettings(); $('settingsDlg').showModal(); };
+  $('settingsClose').onclick = function () { $('settingsDlg').close(); };
+  $('settingsForm').onsubmit = function (e) {
+    e.preventDefault();
+    google.script.run.withSuccessHandler(function (s) {
+      S.settings = s; $('settingsDlg').close(); toast('Pay rules saved.'); load();
+    }).withFailureHandler(fail).saveSettings({
+      rate: $('rate').value, overtimeAfter: $('after').value,
+      multiplier: $('mult').value, symbol: $('symbol').value
+    });
+  };
+
+  // ---------- reports ----------
+  function report(asDocx) {
+    busy(true);
+    toast('Creating the report. This takes a few seconds.');
+    google.script.run.withSuccessHandler(function (r) {
+      busy(false);
+      var links = [['Open Google Doc', r.docUrl]];
+      if (r.docxUrl) links.push(['Open Word file', r.docxUrl]);
+      toast('Report ready.', false, links);
+    }).withFailureHandler(fail).createReport(S.month, S.who, asDocx);
+  }
+  $('docBtn').onclick = function () { report(false); };
+  $('docxBtn').onclick = function () { report(true); };
+
+  $('prev').onclick = function () { shiftMonth(-1); };
+  $('next').onclick = function () { shiftMonth(1); };
+
+  // ---------- start ----------
+  google.script.run.withSuccessHandler(function (init) {
+    S.settings = init.settings;
+    S.employees = init.employees;
+    S.today = init.today;
+    S.selDate = init.today;
+    S.month = init.month;
+    $('date').value = init.today;
+    renderAll();
+    load();
+  }).withFailureHandler(fail).getInit();
+</script>
+</body>
+</html>

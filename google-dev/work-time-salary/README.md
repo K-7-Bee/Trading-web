@@ -1,28 +1,46 @@
-# Work Time & Salary Tracker (Google Apps Script)
+# Work Tracker (Google Apps Script web app)
 
-A Google Sheets script that tracks work hours, calculates salary (with overtime), and
-produces a Google Doc report with a summary, a bar chart and a daily table. The report can
-also be saved as a Word (.docx) file in Google Drive.
+Track work hours and pay for a team, in Korean won. Data lives in a Google Sheet; the
+interface is a web app. Reports are created as Google Docs and can be saved as Word (.docx).
 
-## Install (no tools needed)
-1. Create a new Google Sheet.
-2. **Extensions -> Apps Script**, paste `Code.gs` over the default file.
-3. Project Settings -> tick "Show appsscript.json" and paste in `appsscript.json`.
-4. Reload the sheet. A **Work Tracker** menu appears.
+## What it does
+- Manage a team, each person with their own hourly rate (blank = default rate).
+- Log, edit and delete shifts. Times accept `9`, `930`, `9:30`, `18` or `6pm`; shift presets fill start, end and break.
+- Month calendar shaded by hours worked, with overtime marked. Pick a person to see only their days.
+- Pay is calculated per shift: hours beyond the overtime limit are paid at the multiplier.
+- Google Doc or Word report for the selected person (or everyone) and month, with a chart.
+- Works on phones and in dark mode.
 
-## Install (clasp)
+## Files
+| File | Purpose |
+| --- | --- |
+| `Code.gs` | Sheet setup, month data, report builder, spreadsheet menu |
+| `WebApp.gs` | Web app entry point and functions called by the page |
+| `index.html` | The interface |
+| `appsscript.json` | Manifest: permissions and web app access |
+
+## Deploy with clasp
 ```
 npm i -g @google/clasp
-clasp login
+clasp login                      # also turn on the Apps Script API at script.google.com/home/usersettings
+cd google-dev/work-time-salary
 clasp create --type sheets --title "Work Tracker" --rootDir .
-clasp push
+git checkout -- appsscript.json  # clasp create replaces the manifest; restore this one
+clasp push -f
+clasp create-deployment --description "v1"
 ```
+Open the URL it prints as `https://script.google.com/macros/s/<id>/exec`. To publish later changes to
+the same URL, run `clasp push -f` then `clasp create-deployment --deploymentId <id>`.
 
-## Use
-1. **Work Tracker -> Set up sheets** creates `Settings` and `Time Log`.
-2. Edit `Settings`: hourly rate, overtime threshold (hours/day), overtime multiplier, currency.
-3. On `Time Log` enter Date, Start, End, Break (min). Hours, overtime and pay fill in automatically.
-4. **Generate Google Doc report** or **Export report as Word (.docx)**, then enter `yyyy-MM`
-   (blank = current month).
+The first visit asks for permission (Review permissions, Advanced, Go to Work Tracker, Allow).
+The `Settings`, `Employees` and `Time Log` sheets are created automatically.
 
-Shifts that cross midnight are handled (End earlier than Start).
+## Access
+`appsscript.json` runs the app as the owner and allows only the owner. To let others use it,
+change `access` to `ANYONE` (anyone with a Google account) in Deploy, Manage deployments. Everyone
+then reads and writes the same Sheet.
+
+## Notes
+- Overtime is per shift, not per day: two 5-hour shifts on one day produce no overtime.
+- Removing a person keeps their logged shifts; pay for those falls back to the default rate.
+- `.clasp.json` holds the script ID and is not committed.
